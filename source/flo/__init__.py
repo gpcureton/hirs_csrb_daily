@@ -11,34 +11,34 @@ from flo.sw.hirs import HIRS
 from flo.sw.hirs_avhrr import HIRS_AVHRR
 from flo.sw.hirs.delta import delta_catalog
 
+
 class HIRS_CSRB_DAILY(Computation):
 
-    parameters = ['granule', 'sat', 'hirs_version', 'hirs_csrb_daily_version']
+    parameters = ['granule', 'sat', 'hirs_version', 'collo_version', 'csrb_version']
     outputs = ['stats', 'means']
 
     def build_task(self, context, task):
 
         day = TimeInterval(context['granule'], (context['granule'] + timedelta(days=1) -
                                                 timedelta(seconds=1)))
-        # Using Same contexts for HIRS and HIRS_AVHRR as their parms are the same.  This
-        # will also make running the daily statistics that much easier.   
+
         hirs_contexts = HIRS().find_contexts(context['sat'], context['hirs_version'], day)
 
         for (i, c) in enumerate(hirs_contexts):
             task.input('HIR1B-{}'.format(i), HIRS().dataset('out').product(c))
+            # Adding collo_version parm to hirs_avhrr context
+            c['collo_version'] = context['collo_version']
             task.input('COLLO-{}'.format(i), HIRS_AVHRR().dataset('out').product(c))
-            task.input('PTMSX-{}'.format(i), delta_catalog.file('avhrr', c['sat'], 
+            task.input('PTMSX-{}'.format(i), delta_catalog.file('avhrr', c['sat'],
                                                                 'PTMSX', c['granule']))
-                                                             
-        cfsr_files = delta_catalog.files('ancillary', 'NONE', 'CFSR', 
-                                         TimeInterval(context['granule'], 
-                                                      (context['granule'] + 
+
+        cfsr_files = delta_catalog.files('ancillary', 'NONE', 'CFSR',
+                                         TimeInterval(context['granule'],
+                                                      (context['granule'] +
                                                        timedelta(days=1))))
 
         for (i, cfsr_file) in enumerate(cfsr_files):
             task.input('CFSR-{}'.format(i), cfsr_file)
-
-
 
     def run_task(self, inputs, context):
 
@@ -56,11 +56,11 @@ class HIRS_CSRB_DAILY(Computation):
                                                           context['granule'].strftime('D%y%j'))
 
         # Netcdf Fortran Libraries
-        lib_dir = os.path.join(self.package_root, context['hirs_csrb_daily_version'], 'lib')
+        lib_dir = os.path.join(self.package_root, context['csrb_version'], 'lib')
 
         # Copy coeffs to working directory
-        for f in glob(os.path.join(self.package_root, 
-                                   context['hirs_csrb_daily_version'], 'coeffs/*')):
+        for f in glob(os.path.join(self.package_root,
+                                   context['csrb_version'], 'coeffs/*')):
             shutil.copy(f, './')
 
         # Converting CFSR inputs to binary
@@ -71,30 +71,30 @@ class HIRS_CSRB_DAILY(Computation):
             interval = self.hirs_to_time_interval(inputs['HIR1B-{}'.format(i)])
             cfsr_bin = self.cfsr_input(interval)
 
-            cmd = os.path.join(self.package_root, context['hirs_csrb_daily_version'],
+            cmd = os.path.join(self.package_root, context['csrb_version'],
                                'bin/process_csrb_cfsr.exe')
             cmd += ' ' + inputs['HIR1B-{}'.format(i)]
             cmd += ' ' + cfsr_bin
             cmd += ' ' + inputs['COLLO-{}'.format(i)]
             cmd += ' ' + inputs['PTMSX-{}'.format(i)]
             cmd += ' ' + os.path.join(self.package_root,
-                                      context['hirs_csrb_daily_version'],
+                                      context['csrb_version'],
                                       'CFSR_lst.bin')
             cmd += ' {} {}'.format(debug, shifted_FM_opt)
             cmd += ' ' + output_stats
 
             print cmd
-            check_call(cmd, shell=True, 
+            check_call(cmd, shell=True,
                        env=augmented_env({'LD_LIBRARY_PATH': lib_dir}))
 
         # Running csrb daily means
-        cmd = os.path.join(self.package_root, context['hirs_csrb_daily_version'],
+        cmd = os.path.join(self.package_root, context['csrb_version'],
                            'bin/create_daily_global_csrbs_netcdf.exe')
         cmd += ' {} {} {}'.format(output_stats, output_means, shifted_FM_opt)
 
         print cmd
         check_call(cmd, shell=True, env=augmented_env({'LD_LIBRARY_PATH': lib_dir}))
-            
+
         return {'stats': output_stats, 'means': output_means}
 
     def cfsr_input(self, interval):
@@ -104,31 +104,32 @@ class HIRS_CSRB_DAILY(Computation):
 
     def generate_cfsr_bin(self, context):
 
-        shutil.copy(os.path.join(self.package_root, context['hirs_csrb_daily_version'],
-            'bin/wgrib2'), './')
+        shutil.copy(os.path.join(self.package_root, context['csrb_version'],
+                                 'bin/wgrib2'), './')
 
         files = glob('pgbhnl.gdas.*.grb2')
 
         for file in files:
-            cmd = os.path.join(self.package_root, context['hirs_csrb_daily_version'],
+            cmd = os.path.join(self.package_root, context['csrb_version'],
                                'bin/extract_cfsr.csh')
             cmd += ' {} {}.bin ./'.format(file, file)
 
             print cmd
             check_call(cmd, shell=True)
 
-    def find_contexts(self, sat, hirs_version, hirs_csrb_daily_version, time_interval):
+    def find_contexts(self, sat, hirs_version, collo_version, csrb_version, time_interval):
 
-        granules = [g.left for g in time_interval.overlapping_interval_series(timedelta(days=1), 
-                                                                               timedelta(days=1))]
+        granules = [g.left for g in time_interval.overlapping_interval_series(timedelta(days=1),
+                                                                              timedelta(days=1))]
 
-        return [{'granule': g, 'sat': sat, 'hirs_version': hirs_version, 
-                 'hirs_csrb_daily_version': hirs_csrb_daily_version}
+        return [{'granule': g, 'sat': sat, 'hirs_version': hirs_version,
+                 'collo_version': collo_version,
+                 'csrb_version': csrb_version}
                 for g in granules]
 
     def hirs_to_time_interval(self, filename):
 
-        begin_time = datetime.strptime(filename[12:24], 'D%y%j.S%H%M') 
+        begin_time = datetime.strptime(filename[12:24], 'D%y%j.S%H%M')
         end_time = datetime.strptime(filename[12:19]+filename[25:30], 'D%y%j.E%H%M')
         if end_time < begin_time:
             end_time += timedelta(days=1)
@@ -137,5 +138,5 @@ class HIRS_CSRB_DAILY(Computation):
 
     def time_interval_to_hirs(self, interval):
 
-        return '{}.{}'.format(interval.left.strftime('D%y%j.S%H%M'), 
+        return '{}.{}'.format(interval.left.strftime('D%y%j.S%H%M'),
                               interval.right.strftime('E%H%M'))
