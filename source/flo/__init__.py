@@ -140,3 +140,9 @@ class HIRS_CSRB_DAILY(Computation):
 
         return '{}.{}'.format(interval.left.strftime('D%y%j.S%H%M'),
                               interval.right.strftime('E%H%M'))
+
+    def context_path(self, context, output):
+
+        return os.path.join('HIRS',
+                            '{}/{}'.format(context['sat'], context['granule'].year),
+                            'CSRB_DAILY')
