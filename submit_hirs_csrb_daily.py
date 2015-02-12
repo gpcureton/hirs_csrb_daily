@@ -12,28 +12,18 @@ import time
 def submit(logger, interval, platform):
 
     hirs_version = 'v20140204'
-    hirs_csrb_daily_version = 'v20140204'
+    collo_version = 'v20140204'
+    csrb_version = 'v20140204'
 
     c = HIRS_CSRB_DAILY()
-    contexts = c.find_contexts(platform, hirs_version, hirs_csrb_daily_version, interval)
+    contexts = c.find_contexts(platform, hirs_version, collo_version, csrb_version, interval)
 
     while 1:
         try:
-            return submit_order(c, [c.dataset('means'), c.dataset('stats')], contexts)
+            return submit_order(c, [c.dataset('means')], contexts)
         except:
             time.sleep(5*60)
             logger.info('Failed submiting jobs for.  Sleeping for 5 minutes and submitting again')
-
-def fix_unreaped_jobs(jobIDRange):
-    # this will re-enter jobs that got reaped before they made it into condor
-    conn = psycopg2.connect(**config.get()['database'])
-    cur = conn.cursor()
-    cmd = "insert into unreaped_jobs select generate_series(%d,%d) \
-	except all select job from unreaped_jobs" % (jobIDRange[0],jobIDRange[-1])
-    cur.execute(cmd)
-    conn.commit()
-    conn.close()
-    
 
 # Setup Logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='[%(asctime)s] %(message)s')
@@ -45,7 +35,6 @@ for platform in ['metop-a']:
         jobIDRange = submit(logger, interval, platform)
 
         if len(jobIDRange) > 0:
-            fix_unreaped_jobs(jobIDRange)
             logger.info('Submitting hirs_csrb_daily jobs for {} from {} to {}'.format(platform,
                                                                                       interval.left,
                                                                                       interval.right))
