@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from glob import glob
 import os
 import shutil
+from flo.builder import WorkflowNotReady
 from flo.computation import Computation
 from flo.subprocess import check_call
 from flo.time import round_datetime, TimeInterval
@@ -23,6 +24,9 @@ class HIRS_CSRB_DAILY(Computation):
                                                 timedelta(seconds=1)))
 
         hirs_contexts = HIRS().find_contexts(context['sat'], context['hirs_version'], day)
+
+        if len(hirs_contexts) == 0:
+            raise WorkflowNotReady('NO HIRS Data For {}'.format(context['granule']))
 
         for (i, c) in enumerate(hirs_contexts):
             task.input('HIR1B-{}'.format(i), HIRS().dataset('out').product(c))
