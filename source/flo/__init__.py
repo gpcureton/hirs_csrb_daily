@@ -5,6 +5,7 @@ import os
 import shutil
 from flo.builder import WorkflowNotReady
 from flo.computation import Computation
+from flo.product import StoredProductCatalog
 from flo.subprocess import check_call
 from flo.time import round_datetime, TimeInterval
 from flo.util import augmented_env, symlink_inputs_to_working_dir
@@ -20,6 +21,8 @@ class HIRS_CSRB_DAILY(Computation):
 
     def build_task(self, context, task):
 
+        SPC = StoredProductCatalog()
+
         day = TimeInterval(context['granule'], (context['granule'] + timedelta(days=1) -
                                                 timedelta(seconds=1)))
 
@@ -28,13 +31,29 @@ class HIRS_CSRB_DAILY(Computation):
         if len(hirs_contexts) == 0:
             raise WorkflowNotReady('NO HIRS Data For {}'.format(context['granule']))
 
-        for (i, c) in enumerate(hirs_contexts):
-            task.input('HIR1B-{}'.format(i), HIRS().dataset('out').product(c))
-            # Adding collo_version parm to hirs_avhrr context
-            c['collo_version'] = context['collo_version']
-            task.input('COLLO-{}'.format(i), HIRS_AVHRR().dataset('out').product(c))
-            task.input('PTMSX-{}'.format(i), delta_catalog.file('avhrr', c['sat'],
-                                                                'PTMSX', c['granule']))
+        # Input Counter.
+        ic = 0
+
+        for hirs_context in hirs_contexts:
+
+            print hirs_context
+
+            # Making Input contexts
+            hirs_avhrr_context = hirs_context.copy()
+            hirs_avhrr_context['collo_version'] = context['collo_version']
+
+            # Confirming we have HIRS1B and COLLO inputs before we add all three inputs
+            hirs_prod = HIRS().dataset('out').product(hirs_context)
+            hirs_avhrr_prod = HIRS_AVHRR().dataset('out').product(hirs_avhrr_context)
+
+            if SPC.exists(hirs_prod) and SPC.exists(hirs_avhrr_prod):
+                # Its safe to require all three inputs
+                task.input('HIR1B-{}'.format(ic), hirs_prod)
+                task.input('COLLO-{}'.format(ic), hirs_avhrr_prod)
+                task.input('PTMSX-{}'.format(ic),
+                           delta_catalog.file('avhrr', hirs_context['sat'],
+                                              'PTMSX', hirs_context['granule']))
+                ic += 1
 
         cfsr_files = delta_catalog.files('ancillary', 'NONE', 'CFSR',
                                          TimeInterval(context['granule'],
