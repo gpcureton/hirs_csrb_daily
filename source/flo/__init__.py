@@ -36,8 +36,6 @@ class HIRS_CSRB_DAILY(Computation):
 
         for hirs_context in hirs_contexts:
 
-            print hirs_context
-
             # Making Input contexts
             hirs_avhrr_context = hirs_context.copy()
             hirs_avhrr_context['collo_version'] = context['collo_version']
@@ -107,8 +105,13 @@ class HIRS_CSRB_DAILY(Computation):
             cmd += ' ' + output_stats
 
             print cmd
-            check_call(cmd, shell=True,
-                       env=augmented_env({'LD_LIBRARY_PATH': lib_dir}))
+            # Sometimes this failes due to bad inputs.  Its better to have a 1/2 day of data than
+            # no day of data.
+            try:
+                check_call(cmd, shell=True,
+                           env=augmented_env({'LD_LIBRARY_PATH': lib_dir}))
+            except:
+                print 'ORBIT FAILED: {}'.format(inputs['HIR1B-{}'.format(i)])
 
         # Running csrb daily means
         cmd = os.path.join(self.package_root, context['csrb_version'],
