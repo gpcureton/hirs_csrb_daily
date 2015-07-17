@@ -66,7 +66,9 @@ class HIRS_CSRB_DAILY(Computation):
         debug = 0
         shifted_FM_opt = 2
 
+        print "The inputs to symlink are {}".format(inputs)
         inputs = symlink_inputs_to_working_dir(inputs)
+
         # Counting number of HIR1B inputs
         num_inputs = len([input for input in inputs.keys() if 'HIR1B' in input])
 
