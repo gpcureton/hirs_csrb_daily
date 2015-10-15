@@ -8,10 +8,14 @@ import sys
 import psycopg2
 import time
 
+# every module should have a LOG object
+import logging, traceback
+LOG = logging.getLogger(__file__)
+
 
 def submit(logger, interval, platform):
 
-    hirs_version = 'v20140204'
+    hirs_version = 'v20151014'
     collo_version = 'v20140204'
     csrb_version = 'v20140204'
 

@@ -5,6 +5,10 @@ from flo.product import StoredProductCatalog
 from flo.time import TimeInterval
 from flo.sw.hirs_csrb_daily import HIRS_CSRB_DAILY
 
+# every module should have a LOG object
+import logging, traceback
+LOG = logging.getLogger(__file__)
+
 
 def symlink(c, output, contexts):
 
@@ -26,7 +30,7 @@ def symlink(c, output, contexts):
 
 output = 'means'
 sat = 'metop-a'
-hirs_version = 'v20140204'
+hirs_version = 'v20151014'
 collo_version = 'v20140204'
 csrb_version = 'v20140204'
 interval = TimeInterval(datetime(2009, 1, 1), datetime(2009, 2, 1))

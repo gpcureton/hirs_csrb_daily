@@ -13,6 +13,10 @@ from flo.sw.hirs import HIRS
 from flo.sw.hirs_avhrr import HIRS_AVHRR
 from flo.sw.hirs.delta import delta_catalog
 
+# every module should have a LOG object
+import logging, traceback
+LOG = logging.getLogger(__file__)
+
 
 class HIRS_CSRB_DAILY(Computation):
 
@@ -60,6 +64,29 @@ class HIRS_CSRB_DAILY(Computation):
 
         for (i, cfsr_file) in enumerate(cfsr_files):
             task.input('CFSR-{}'.format(i), cfsr_file)
+
+
+    def generate_cfsr_bin(self, context):
+
+        shutil.copy(os.path.join(self.package_root, context['csrb_version'],
+                                 'bin/wgrib2'), './')
+
+        files = glob('pgbhnl.gdas.*.grb2')
+
+        for file in files:
+            cmd = os.path.join(self.package_root, context['csrb_version'],
+                               'bin/extract_cfsr.csh')
+            cmd += ' {} {}.bin ./'.format(file, file)
+
+            print cmd
+            check_call(cmd, shell=True)
+
+
+    def cfsr_input(self, interval):
+
+        cfsr_granule = round_datetime(interval.left, timedelta(hours=6))
+        return 'pgbhnl.gdas.{}.grb2.bin'.format(cfsr_granule.strftime('%Y%m%d%H'))
+
 
     def run_task(self, inputs, context):
 
@@ -125,25 +152,6 @@ class HIRS_CSRB_DAILY(Computation):
 
         return {'stats': output_stats, 'means': output_means}
 
-    def cfsr_input(self, interval):
-
-        cfsr_granule = round_datetime(interval.left, timedelta(hours=6))
-        return 'pgbhnl.gdas.{}.grb2.bin'.format(cfsr_granule.strftime('%Y%m%d%H'))
-
-    def generate_cfsr_bin(self, context):
-
-        shutil.copy(os.path.join(self.package_root, context['csrb_version'],
-                                 'bin/wgrib2'), './')
-
-        files = glob('pgbhnl.gdas.*.grb2')
-
-        for file in files:
-            cmd = os.path.join(self.package_root, context['csrb_version'],
-                               'bin/extract_cfsr.csh')
-            cmd += ' {} {}.bin ./'.format(file, file)
-
-            print cmd
-            check_call(cmd, shell=True)
 
     def find_contexts(self, sat, hirs_version, collo_version, csrb_version, time_interval):
 
