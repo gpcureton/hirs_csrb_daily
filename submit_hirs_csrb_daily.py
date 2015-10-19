@@ -17,7 +17,7 @@ def submit(logger, interval, platform):
 
     hirs_version = 'v20151014'
     collo_version = 'v20140204'
-    csrb_version = 'v20140204'
+    csrb_version = 'v20150915'
 
     c = HIRS_CSRB_DAILY()
     contexts = c.find_contexts(platform, hirs_version, collo_version, csrb_version, interval)
