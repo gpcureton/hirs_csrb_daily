@@ -44,8 +44,7 @@ class HIRS_CSRB_DAILY(Computation):
         # Input Counter.
         ic = 0
 
-        #for hirs_context in hirs_contexts:
-        for hirs_context in hirs_contexts[:1]:
+        for hirs_context in hirs_contexts:
 
             # Making Input contexts
             hirs_avhrr_context = hirs_context.copy()
