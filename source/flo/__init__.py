@@ -27,9 +27,9 @@ class HIRS_CSRB_DAILY(Computation):
     outputs = ['stats', 'means']
 
     def build_task(self, context, task):
-        LOG.info("Running build_task()") # GPC
-        LOG.info("context:  {}".format(context)) # GPC
-        LOG.info("Initial task.inputs:  {}".format(task.inputs)) # GPC
+        LOG.debug("Running build_task()") # GPC
+        LOG.debug("context:  {}".format(context)) # GPC
+        LOG.debug("Initial task.inputs:  {}".format(task.inputs)) # GPC
 
         SPC = StoredProductCatalog()
 
@@ -50,8 +50,8 @@ class HIRS_CSRB_DAILY(Computation):
             hirs_avhrr_context = hirs_context.copy()
             hirs_avhrr_context['collo_version'] = context['collo_version']
 
-            LOG.info("HIRS context:  {}".format(hirs_context)) # GPC
-            LOG.info("HIRS_AVHRR context:  {}".format(hirs_avhrr_context)) # GPC
+            LOG.debug("HIRS context:  {}".format(hirs_context)) # GPC
+            LOG.debug("HIRS_AVHRR context:  {}".format(hirs_avhrr_context)) # GPC
 
             # Confirming we have HIRS1B and COLLO products...
             hirs_prod = HIRS().dataset('out').product(hirs_context)
@@ -74,11 +74,9 @@ class HIRS_CSRB_DAILY(Computation):
                 format(ic,day.left,day.right)) # GPC
 
         if ic == 0:
-            LOG.info("There are no valid HIR1B/COLLO/PTMSX contexts in ({} -> {}), aborting...".
+            LOG.warn("There are no valid HIR1B/COLLO/PTMSX contexts in ({} -> {}), aborting...".
                     format(day.left,day.right)) # GPC
             return
-
-        #LOG.info("task.inputs:  {}".format(task.inputs)) # GPC
 
         interval = TimeInterval(context['granule'], 
                                 context['granule'] + timedelta(days=1))
@@ -87,35 +85,35 @@ class HIRS_CSRB_DAILY(Computation):
 
         # Search for the old style pgbhnl.gdas.*.grb2 files from the PEATE
         if num_cfsr_files == 0:
-            LOG.info("Trying to retrieve pgbhnl.gdas.*.grb2 CFSR files from PEATE...") # GPC
+            LOG.debug("Trying to retrieve pgbhnl.gdas.*.grb2 CFSR files from PEATE...") # GPC
             try:
                 cfsr_files = ingest_catalog.files('CFSR_PGRBHANL',interval)
                 num_cfsr_files = len(cfsr_files)
                 if num_cfsr_files == 0:
-                    LOG.info("\tpgbhnl.gdas.*.grb2 CFSR files from PEATE : {}".format(cfsr_files)) # GPC
+                    LOG.debug("\tpgbhnl.gdas.*.grb2 CFSR files from PEATE : {}".format(cfsr_files)) # GPC
             except Exception, err :
                 LOG.error("{}.".format(err))
                 LOG.warn("Retrieval of pgbhnl.gdas.*.grb2 CFSR files from PEATE failed") # GPC
 
         # Search for the old style pgbhnl.gdas.*.grb2 files from the file list
         #if num_cfsr_files == 0:
-            #LOG.info("Trying to retrieve pgbhnl.gdas.*.grb2 CFSR files from DELTA...") # GPC
+            #LOG.debug("Trying to retrieve pgbhnl.gdas.*.grb2 CFSR files from DELTA...") # GPC
             #try:
                 #cfsr_files = delta_catalog.files('ancillary', 'NONE', 'CFSR', interval)
                 #num_cfsr_files = len(cfsr_files)
-                #LOG.info("pgbhnl.gdas.*.grb2 CFSR files from DELTA : {}".format(cfsr_files)) # GPC
+                #LOG.debug("pgbhnl.gdas.*.grb2 CFSR files from DELTA : {}".format(cfsr_files)) # GPC
             #except Exception, err :
                 #LOG.error("{}.".format(err))
                 #LOG.warn("Retrieval of pgbhnl.gdas.*.grb2 CFSR files from DELTA failed") # GPC
 
         # Search for the new style cdas1.*.t*z.pgrbhanl.grib2 files from PEATE
         if num_cfsr_files == 0:
-            LOG.info("Trying to retrieve cdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE...") # GPC
+            LOG.debug("Trying to retrieve cdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE...") # GPC
             try:
                 cfsr_files = ingest_catalog.files('CFSV2_PGRBHANL',interval)
                 num_cfsr_files = len(cfsr_files)
                 if num_cfsr_files == 0:
-                    LOG.info("\tcdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE : {}".format(cfsr_files)) # GPC
+                    LOG.debug("\tcdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE : {}".format(cfsr_files)) # GPC
             except Exception, err :
                 LOG.error("{}.".format(err))
                 LOG.warn("Retrieval of cdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE failed") # GPC
@@ -127,9 +125,8 @@ class HIRS_CSRB_DAILY(Computation):
         if num_cfsr_files != 0:
             for (i, cfsr_file) in enumerate(cfsr_files):
                 task.input('CFSR-{}'.format(i), cfsr_file)
-                LOG.info("cfsr_file ({}) = {}".format(i, cfsr_file)) # GPC
+                LOG.debug("cfsr_file ({}) = {}".format(i, cfsr_file)) # GPC
 
-        LOG.info("Leaving build_task()") # GPC
 
 
     def generate_cfsr_bin(self, context):
@@ -144,7 +141,7 @@ class HIRS_CSRB_DAILY(Computation):
         if len(files)==0:
             files = glob('cdas1.*.pgrbhanl.grib2')
 
-        LOG.info("CFSR files: {}".format(files)) # GPC
+        LOG.debug("CFSR files: {}".format(files)) # GPC
 
         new_cfsr_files = []
         for file in files:
@@ -172,16 +169,16 @@ class HIRS_CSRB_DAILY(Computation):
         pgbhnl_filename = 'pgbhnl.gdas.{}.grb2.bin'.format(cfsr_granule.strftime('%Y%m%d%H'))
         cdas1_filename = 'cdas1.{}.t{}z.pgrbhanl.grib2.bin'.format(cfsr_granule.strftime('%Y%m%d'),
                 cfsr_granule.strftime('%H'))
-        LOG.info("pgbhnl_filename file is {}".format(pgbhnl_filename)) # GPC
-        LOG.info("cdas1_filename file is {}".format(cdas1_filename)) # GPC
+        LOG.debug("pgbhnl_filename file is {}".format(pgbhnl_filename)) # GPC
+        LOG.debug("cdas1_filename file is {}".format(cdas1_filename)) # GPC
         
         for files in cfsr_bin_files:
-            LOG.info("Candidate file is {}".format(files)) # GPC
+            LOG.debug("Candidate file is {}".format(files)) # GPC
             if files == pgbhnl_filename:
-                LOG.info("We have a CFSR file match: {}".format(files)) # GPC
+                LOG.debug("We have a CFSR file match: {}".format(files)) # GPC
                 return files
             elif files == cdas1_filename:
-                LOG.info("We have a CFSR file match: {}".format(files)) # GPC
+                LOG.debug("We have a CFSR file match: {}".format(files)) # GPC
                 return files
             else:
                 pass
@@ -195,14 +192,14 @@ class HIRS_CSRB_DAILY(Computation):
         LOG.info("context:  {}".format(context)) # GPC
 
         if inputs == {}:
-            LOG.info("There are no valid inputs for context {}, aborting...".
+            LOG.warn("There are no valid inputs for context {}, aborting...".
                     format(context['granule'])) # GPC
             return {}
 
         input_keys = inputs.keys()
         input_keys.sort()
         for key in input_keys:
-            LOG.info("{:8s} : {}".format(key,inputs[key]))
+            LOG.debug("{:8s} : {}".format(key,inputs[key]))
 
         #sys.exit(0) # GPC
 
@@ -237,10 +234,10 @@ class HIRS_CSRB_DAILY(Computation):
         for i in xrange(num_inputs):
             
             interval = self.hirs_to_time_interval(inputs['HIR1B-{}'.format(i)])
-            LOG.info("HIRS interval: {} -> {}".format(interval.left,interval.right))
+            LOG.debug("HIRS interval: {} -> {}".format(interval.left,interval.right))
 
             cfsr_bin = self.cfsr_input(cfsr_bin_files,interval)
-            LOG.info("cfsr_bin ({}): {}".format(i,cfsr_bin))
+            LOG.debug("cfsr_bin ({}): {}".format(i,cfsr_bin))
 
             if cfsr_bin == None:
                 LOG.warn("Could not find cfsr_bin file to match HIRS interval: {} -> {}".format(interval.left,interval.right))
