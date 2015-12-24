@@ -44,7 +44,8 @@ class HIRS_CSRB_DAILY(Computation):
         # Input Counter.
         ic = 0
 
-        for hirs_context in hirs_contexts:
+        #for hirs_context in hirs_contexts:
+        for hirs_context in hirs_contexts[:1]:
 
             # Making Input contexts
             hirs_avhrr_context = hirs_context.copy()
@@ -72,6 +73,7 @@ class HIRS_CSRB_DAILY(Computation):
 
         LOG.info("There are {} valid HIR1B/COLLO/PTMSX contexts in ({} -> {})".
                 format(ic,day.left,day.right)) # GPC
+
 
         if ic == 0:
             LOG.warn("There are no valid HIR1B/COLLO/PTMSX contexts in ({} -> {}), aborting...".
@@ -127,6 +129,9 @@ class HIRS_CSRB_DAILY(Computation):
                 task.input('CFSR-{}'.format(i), cfsr_file)
                 LOG.debug("cfsr_file ({}) = {}".format(i, cfsr_file)) # GPC
 
+        LOG.debug("Final task.inputs...") # GPC
+        for task_key in task.inputs.keys():
+            LOG.debug("\t{}: {}".format(task_key,task.inputs[task_key])) # GPC
 
 
     def generate_cfsr_bin(self, context):
@@ -200,8 +205,6 @@ class HIRS_CSRB_DAILY(Computation):
         input_keys.sort()
         for key in input_keys:
             LOG.debug("{:8s} : {}".format(key,inputs[key]))
-
-        #sys.exit(0) # GPC
 
         debug = 0
         shifted_FM_opt = 2
