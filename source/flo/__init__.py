@@ -1,42 +1,85 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
 
-from datetime import datetime, timedelta
+Purpose: Run the hirs_csrb_daily package
+
+Copyright (c) 2015 University of Wisconsin Regents.
+Licensed under GNU GPLv3.
+"""
+
+import os
+from os.path import basename, dirname, curdir, abspath, isdir, isfile, exists, splitext, join as pjoin
+import sys
 from glob import glob
-import os,sys
 import shutil
-from flo.builder import WorkflowNotReady
+import logging
+import traceback
+
 from flo.computation import Computation
+from flo.builder import WorkflowNotReady
+from timeutil import TimeInterval, datetime, timedelta, round_datetime
+from flo.util import augmented_env, symlink_inputs_to_working_dir
+#from flo.subprocess import check_call
 from flo.product import StoredProductCatalog
 from flo.ingest import IngestCatalog
-from flo.subprocess import check_call
-from flo.time import round_datetime, TimeInterval
-from flo.util import augmented_env, symlink_inputs_to_working_dir
 
-from flo.sw.hirs import HIRS
-from flo.sw.hirs_avhrr import HIRS_AVHRR
-from flo.sw.hirs.delta import delta_catalog
+import sipsprod
+from glutil import (
+    check_call,
+    #dawg_catalog,
+    #delivered_software,
+    #support_software,
+    #runscript,
+    #prepare_env,
+    #nc_gen,
+    nc_compress,
+    reraise_as,
+    #set_official_product_metadata,
+    FileNotFound
+)
+import flo.sw.hirs as hirs
+import flo.sw.hirs_avhrr as hirs_avhrr
+from flo.sw.hirs.delta import DeltaCatalog
 
 # every module should have a LOG object
-import logging, traceback
-LOG = logging.getLogger(__file__)
+LOG = logging.getLogger(__name__)
 
 ingest_catalog = IngestCatalog('PEATE')
+
+def set_input_sources(input_locations):
+    global delta_catalog
+    delta_catalog = DeltaCatalog(**input_locations)
 
 class HIRS_CSRB_DAILY(Computation):
 
     parameters = ['granule', 'sat', 'hirs_version', 'collo_version', 'csrb_version']
     outputs = ['stats', 'means']
 
+    @reraise_as(WorkflowNotReady, FileNotFound, prefix='CSRB')
     def build_task(self, context, task):
+        '''
+        Build up a set of inputs for a single context
+        '''
+        global delta_catalog
+
         LOG.debug("Running build_task()")
         LOG.debug("context:  {}".format(context))
         LOG.debug("Initial task.inputs:  {}".format(task.inputs))
+
+        # Initialize the hirs and hirs_avhrr modules with the data locations
+        hirs.delta_catalog = delta_catalog
+        hirs_avhrr.delta_catalog = delta_catalog
+        # Instantiate the hirs and hirs_avhrr computations
+        hirs_comp = hirs.HIRS()
+        hirs_avhrr_comp = hirs_avhrr.HIRS_AVHRR()
 
         SPC = StoredProductCatalog()
 
         day = TimeInterval(context['granule'], (context['granule'] + timedelta(days=1) -
                                                 timedelta(seconds=1)))
 
-        hirs_contexts = HIRS().find_contexts(context['sat'], context['hirs_version'], day)
+        hirs_contexts = hirs_comp.find_contexts(day, context['sat'], context['hirs_version'])
 
         if len(hirs_contexts) == 0:
             raise WorkflowNotReady('NO HIRS Data For {}'.format(context['granule']))
@@ -55,8 +98,8 @@ class HIRS_CSRB_DAILY(Computation):
             LOG.debug("HIRS_AVHRR context:  {}".format(hirs_avhrr_context))
 
             # Confirming we have HIRS1B and COLLO products...
-            hirs_prod = HIRS().dataset('out').product(hirs_context)
-            hirs_avhrr_prod = HIRS_AVHRR().dataset('out').product(hirs_avhrr_context)
+            hirs_prod = hirs_comp.dataset('out').product(hirs_context)
+            hirs_avhrr_prod = hirs_avhrr_comp.dataset('out').product(hirs_avhrr_context)
 
             # If HIRS1B and COLLO products exist, add them and the Patmos-X
             # file for this context to the list of input files to be downloaded to 
@@ -136,7 +179,7 @@ class HIRS_CSRB_DAILY(Computation):
 
     def generate_cfsr_bin(self, context):
 
-        shutil.copy(os.path.join(self.package_root, context['csrb_version'],
+        shutil.copy(pjoin(self.package_root, context['csrb_version'],
                                  'bin/wgrib2'), './')
 
         # Search for the old style pgbhnl.gdas.*.grb2 files
@@ -150,7 +193,7 @@ class HIRS_CSRB_DAILY(Computation):
 
         new_cfsr_files = []
         for file in files:
-            cmd = os.path.join(self.package_root, context['csrb_version'],
+            cmd = pjoin(self.package_root, context['csrb_version'],
                                'bin/extract_cfsr.csh')
             cmd += ' {} {}.bin ./'.format(file, file)
 
@@ -191,6 +234,7 @@ class HIRS_CSRB_DAILY(Computation):
         return None
 
 
+    @reraise_as(WorkflowNotReady, FileNotFound, prefix='CSRB')
     def run_task(self, inputs, context):
 
         LOG.info("Running run_task()")
@@ -222,10 +266,10 @@ class HIRS_CSRB_DAILY(Computation):
                                                           context['granule'].strftime('D%y%j'))
 
         # Netcdf Fortran Libraries
-        lib_dir = os.path.join(self.package_root, context['csrb_version'], 'lib')
+        lib_dir = pjoin(self.package_root, context['csrb_version'], 'lib')
 
         # Copy coeffs to working directory
-        for f in glob(os.path.join(self.package_root,
+        for f in glob(pjoin(self.package_root,
                                    context['csrb_version'], 'coeffs/*')):
             shutil.copy(f, './')
 
@@ -246,13 +290,13 @@ class HIRS_CSRB_DAILY(Computation):
                 LOG.warn("Could not find cfsr_bin file to match HIRS interval: {} -> {}".format(interval.left,interval.right))
                 continue
 
-            cmd = os.path.join(self.package_root, context['csrb_version'],
+            cmd = pjoin(self.package_root, context['csrb_version'],
                                'bin/process_csrb_cfsr.exe')
             cmd += ' ' + inputs['HIR1B-{}'.format(i)]
             cmd += ' ' + cfsr_bin
             cmd += ' ' + inputs['COLLO-{}'.format(i)]
             cmd += ' ' + inputs['PTMSX-{}'.format(i)]
-            cmd += ' ' + os.path.join(self.package_root,
+            cmd += ' ' + pjoin(self.package_root,
                                       context['csrb_version'],
                                       'CFSR_lst.bin')
             cmd += ' {} {}'.format(debug, shifted_FM_opt)
@@ -261,7 +305,7 @@ class HIRS_CSRB_DAILY(Computation):
             print cmd
 
 
-            # Sometimes this failes due to bad inputs.  Its better to have a 1/2 day of data than
+            # Sometimes this fails due to bad inputs.  Its better to have a 1/2 day of data than
             # no day of data.
             try:
                 check_call(cmd, shell=True,
@@ -271,7 +315,7 @@ class HIRS_CSRB_DAILY(Computation):
 
 
         # Running csrb daily means
-        cmd = os.path.join(self.package_root, context['csrb_version'],
+        cmd = pjoin(self.package_root, context['csrb_version'],
                            'bin/create_daily_global_csrbs_netcdf.exe')
         cmd += ' {} {} {}'.format(output_stats, output_means, shifted_FM_opt)
 
@@ -281,12 +325,14 @@ class HIRS_CSRB_DAILY(Computation):
         return {'stats': output_stats, 'means': output_means}
 
 
-    def find_contexts(self, sat, hirs_version, collo_version, csrb_version, time_interval):
+    def find_contexts(self, time_interval, sat, hirs_version, collo_version, csrb_version):
 
         granules = [g.left for g in time_interval.overlapping_interval_series(timedelta(days=1),
                                                                               timedelta(days=1))]
 
-        return [{'granule': g, 'sat': sat, 'hirs_version': hirs_version,
+        return [{'granule': g,
+                 'sat': sat,
+                 'hirs_version': hirs_version,
                  'collo_version': collo_version,
                  'csrb_version': csrb_version}
                 for g in granules]
@@ -312,6 +358,6 @@ class HIRS_CSRB_DAILY(Computation):
 
     def context_path(self, context, output):
 
-        return os.path.join('HIRS',
+        return pjoin('HIRS',
                             '{}/{}'.format(context['sat'], context['granule'].year),
                             'CSRB_DAILY')
