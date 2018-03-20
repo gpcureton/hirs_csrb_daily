@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
+"""
+
+Purpose: Run the hirs_csrb_daily package
+
+Copyright (c) 2015 University of Wisconsin Regents.
+Licensed under GNU GPLv3.
+"""
 
 import sys
 import traceback
@@ -19,7 +26,7 @@ LOG = logging.getLogger(__name__)
 #
 
 # General information
-platform = 'metop-b'
+satellite = 'metop-b'
 hirs_version  = 'v20151014'
 collo_version = 'v20151014'
 csrb_version  = 'v20150915'
@@ -39,9 +46,12 @@ collection = {'HIR1B': 'ILIAD',
 
 # Metop-B
 #satellite = 'metop-b'
-input_data = {'HIR1B': '/mnt/sdata/geoffc/HIRS_processing/data_lists/Metop-B/HIR1B_metop-b_latest',
-              'CFSR':  '/mnt/sdata/geoffc/HIRS_processing/data_lists/CFSR.out',
-              'PTMSX': '/mnt/sdata/geoffc/HIRS_processing/data_lists/Metop-B/PTMSX_metop-b_latest'}
+#input_data = {'HIR1B': '/mnt/sdata/geoffc/HIRS_processing/data_lists/Metop-B/HIR1B_metop-b_latest',
+              #'CFSR':  '/mnt/sdata/geoffc/HIRS_processing/data_lists/CFSR.out',
+              #'PTMSX': '/mnt/sdata/geoffc/HIRS_processing/data_lists/Metop-B/PTMSX_metop-b_latest'}
+input_data = {'HIR1B': '/mnt/cephfs_data/geoffc/hirs_data_lists/Metop-B/HIR1B_metop-b_latest',
+              'CFSR':  '/mnt/cephfs_data/geoffc/hirs_data_lists/CFSR.out',
+              'PTMSX': '/mnt/cephfs_data/geoffc/hirs_data_lists/Metop-B/PTMSX_metop-b_latest'}
 
 input_sources = {'collection':collection, 'input_data':input_data}
 
@@ -92,8 +102,8 @@ def print_contexts(interval, satellite, hirs_version, collo_version, csrb_versio
     for context in contexts:
         LOG.info(context)
 
-#platform_choices = ['noaa-06', 'noaa-07', 'noaa-08', 'noaa-09', 'noaa-10', 'noaa-11',
+#satellite_choices = ['noaa-06', 'noaa-07', 'noaa-08', 'noaa-09', 'noaa-10', 'noaa-11',
                     #'noaa-12', 'noaa-14', 'noaa-15', 'noaa-16', 'noaa-17', 'noaa-18',
                     #'noaa-19', 'metop-a', 'metop-b']
 
-#local_execute_example(granule, platform, hirs_version, collo_version, csrb_version):
+#local_execute_example(granule, satellite, hirs_version, collo_version, csrb_version):

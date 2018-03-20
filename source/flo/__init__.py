@@ -20,14 +20,12 @@ from flo.computation import Computation
 from flo.builder import WorkflowNotReady
 from timeutil import TimeInterval, datetime, timedelta, round_datetime
 from flo.util import augmented_env, symlink_inputs_to_working_dir
-#from flo.subprocess import check_call
 from flo.product import StoredProductCatalog
-from flo.ingest import IngestCatalog
 
 import sipsprod
 from glutil import (
     check_call,
-    #dawg_catalog,
+    dawg_catalog,
     #delivered_software,
     #support_software,
     #runscript,
@@ -44,8 +42,6 @@ from flo.sw.hirs.delta import DeltaCatalog
 
 # every module should have a LOG object
 LOG = logging.getLogger(__name__)
-
-ingest_catalog = IngestCatalog('PEATE')
 
 def set_input_sources(input_locations):
     global delta_catalog
@@ -65,11 +61,11 @@ class HIRS_CSRB_DAILY(Computation):
 
         LOG.debug("Running build_task()")
         LOG.debug("context:  {}".format(context))
-        LOG.debug("Initial task.inputs:  {}".format(task.inputs))
 
         # Initialize the hirs and hirs_avhrr modules with the data locations
         hirs.delta_catalog = delta_catalog
         hirs_avhrr.delta_catalog = delta_catalog
+
         # Instantiate the hirs and hirs_avhrr computations
         hirs_comp = hirs.HIRS()
         hirs_avhrr_comp = hirs_avhrr.HIRS_AVHRR()
@@ -87,14 +83,13 @@ class HIRS_CSRB_DAILY(Computation):
         # Input Counter.
         ic = 0
 
-        #for hirs_context in hirs_contexts:
-        for hirs_context in hirs_contexts[:1]:
+        for hirs_context in hirs_contexts:
 
             # Making Input contexts
             hirs_avhrr_context = hirs_context.copy()
             hirs_avhrr_context['collo_version'] = context['collo_version']
 
-            LOG.debug("HIRS context:  {}".format(hirs_context))
+            LOG.debug("HIRS context:        {}".format(hirs_context))
             LOG.debug("HIRS_AVHRR context:  {}".format(hirs_avhrr_context))
 
             # Confirming we have HIRS1B and COLLO products...
@@ -102,7 +97,7 @@ class HIRS_CSRB_DAILY(Computation):
             hirs_avhrr_prod = hirs_avhrr_comp.dataset('out').product(hirs_avhrr_context)
 
             # If HIRS1B and COLLO products exist, add them and the Patmos-X
-            # file for this context to the list of input files to be downloaded to 
+            # file for this context to the list of input files to be downloaded to
             # the workspace...
             if SPC.exists(hirs_prod) and SPC.exists(hirs_avhrr_prod):
                 # Its safe to require all three inputs
@@ -114,7 +109,7 @@ class HIRS_CSRB_DAILY(Computation):
                 ic += 1
 
 
-        LOG.info("There are {} valid HIR1B/COLLO/PTMSX contexts in ({} -> {})".
+        LOG.debug("There are {} valid HIR1B/COLLO/PTMSX contexts in ({} -> {})".
                 format(ic,day.left,day.right))
 
 
@@ -123,49 +118,38 @@ class HIRS_CSRB_DAILY(Computation):
                     format(day.left,day.right))
             return
 
-        interval = TimeInterval(context['granule'], 
+        interval = TimeInterval(context['granule'],
                                 context['granule'] + timedelta(days=1))
 
         num_cfsr_files = 0
 
         # Search for the old style pgbhnl.gdas.*.grb2 files from the PEATE
         if num_cfsr_files == 0:
-            LOG.debug("Trying to retrieve pgbhnl.gdas.*.grb2 CFSR files from PEATE...")
+            LOG.debug("Trying to retrieve CFSR_PGRBHANL product (pgbhnl.gdas.*.grb2) CFSR files from DAWG...")
             try:
-                cfsr_files = ingest_catalog.files('CFSR_PGRBHANL',interval)
+                cfsr_files = dawg_catalog.files('', 'CFSR_PGRBHANL', interval)
                 num_cfsr_files = len(cfsr_files)
                 if num_cfsr_files == 0:
-                    LOG.debug("\tpgbhnl.gdas.*.grb2 CFSR files from PEATE : {}".format(cfsr_files))
+                    LOG.debug("\tpgbhnl.gdas.*.grb2 CFSR files from DAWG : {}".format(cfsr_files))
             except Exception, err :
                 LOG.error("{}.".format(err))
-                LOG.warn("Retrieval of pgbhnl.gdas.*.grb2 CFSR files from PEATE failed")
-
-        # Search for the old style pgbhnl.gdas.*.grb2 files from the file list
-        #if num_cfsr_files == 0:
-            #LOG.debug("Trying to retrieve pgbhnl.gdas.*.grb2 CFSR files from DELTA...")
-            #try:
-                #cfsr_files = delta_catalog.files('ancillary', 'NONE', 'CFSR', interval)
-                #num_cfsr_files = len(cfsr_files)
-                #LOG.debug("pgbhnl.gdas.*.grb2 CFSR files from DELTA : {}".format(cfsr_files))
-            #except Exception, err :
-                #LOG.error("{}.".format(err))
-                #LOG.warn("Retrieval of pgbhnl.gdas.*.grb2 CFSR files from DELTA failed")
+                LOG.warn("Retrieval of CFSR_PGRBHANL product (pgbhnl.gdas.*.grb2) CFSR files from DAWG failed")
 
         # Search for the new style cdas1.*.t*z.pgrbhanl.grib2 files from PEATE
         if num_cfsr_files == 0:
-            LOG.debug("Trying to retrieve cdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE...")
+            LOG.debug("Trying to retrieve CFSV2_PGRBHANL product (cdas1.*.t*z.pgrbhanl.grib2) CFSR files from DAWG...")
             try:
-                cfsr_files = ingest_catalog.files('CFSV2_PGRBHANL',interval)
+                cfsr_files = dawg_catalog.files('', 'CFSV2_PGRBHANL', interval)
                 num_cfsr_files = len(cfsr_files)
                 if num_cfsr_files == 0:
-                    LOG.debug("\tcdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE : {}".format(cfsr_files))
+                    LOG.debug("\tcdas1.*.t*z.pgrbhanl.grib2 CFSR files from DAWG : {}".format(cfsr_files))
             except Exception, err :
                 LOG.error("{}.".format(err))
-                LOG.warn("Retrieval of cdas1.*.t*z.pgrbhanl.grib2 CFSR files from PEATE failed")
+                LOG.warn("Retrieval of CFSV2_PGRBHANL product cdas1.*.t*z.pgrbhanl.grib2 CFSR files from DAWG failed")
 
-        LOG.info("We've found {} CFSR files for context {}".format(len(cfsr_files),context))
+        LOG.debug("We've found {} CFSR files for context {}".format(len(cfsr_files),context))
 
-        # Add the CFSR files to the list of input files to be downloaded to the 
+        # Add the CFSR files to the list of input files to be downloaded to the
         # workspace...
         if num_cfsr_files != 0:
             for (i, cfsr_file) in enumerate(cfsr_files):
@@ -175,7 +159,6 @@ class HIRS_CSRB_DAILY(Computation):
         LOG.debug("Final task.inputs...")
         for task_key in task.inputs.keys():
             LOG.debug("\t{}: {}".format(task_key,task.inputs[task_key]))
-
 
     def generate_cfsr_bin(self, context):
 
@@ -219,7 +202,7 @@ class HIRS_CSRB_DAILY(Computation):
                 cfsr_granule.strftime('%H'))
         LOG.debug("pgbhnl_filename file is {}".format(pgbhnl_filename))
         LOG.debug("cdas1_filename file is {}".format(cdas1_filename))
-        
+
         for files in cfsr_bin_files:
             LOG.debug("Candidate file is {}".format(files))
             if files == pgbhnl_filename:
@@ -279,7 +262,7 @@ class HIRS_CSRB_DAILY(Computation):
 
         # Running csrb daily stats for each HIR1B input
         for i in xrange(num_inputs):
-            
+
             interval = self.hirs_to_time_interval(inputs['HIR1B-{}'.format(i)])
             LOG.debug("HIRS interval: {} -> {}".format(interval.left,interval.right))
 

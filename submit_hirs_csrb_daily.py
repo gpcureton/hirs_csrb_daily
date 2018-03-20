@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 # encoding: utf-8
+"""
+
+Purpose: Run the hirs_csrb_daily package
+
+Copyright (c) 2015 University of Wisconsin Regents.
+Licensed under GNU GPLv3.
+"""
 
 import sys
 import traceback
@@ -10,7 +17,6 @@ from time import sleep
 
 from flo.ui import safe_submit_order
 from timeutil import TimeInterval, datetime, timedelta
-from flo.product import StoredProductCatalog
 
 import flo.sw.hirs_csrb_daily as hirs_csrb_daily
 from flo.sw.hirs.utils import setup_logging
@@ -18,7 +24,7 @@ from flo.sw.hirs.utils import setup_logging
 # every module should have a LOG object
 LOG = logging.getLogger(__name__)
 
-setup_logging(3)
+setup_logging(2)
 
 # General information
 hirs_version = 'v20151014'
@@ -41,11 +47,13 @@ day = timedelta(days=1.)
 #intervals += [TimeInterval(datetime(years,month,1), datetime(years,month,calendar.monthrange(years,month)[1])+day-wedge) for month in range(1,2) ]
 
 satellite = 'metop-b'
-granule = datetime(2017, 1, 15)
-intervals = [TimeInterval(granule, granule + day - wedge)]
-#intervals = []
-#years = 2017
-#intervals += [TimeInterval(datetime(years,month,1), datetime(years,month,calendar.monthrange(years,month)[1])+day-wedge) for month in range(1,13) ]
+#granule = datetime(2017, 1, 1)
+#intervals = [TimeInterval(granule, granule + day - wedge)]
+intervals = []
+years = 2012
+intervals += [TimeInterval(datetime(years,month,1), datetime(years,month,calendar.monthrange(years,month)[1])+day-wedge) for month in range(10,13) ]
+for years in range(2013,2018):
+    intervals += [TimeInterval(datetime(years,month,1), datetime(years,month,calendar.monthrange(years,month)[1])+day-wedge) for month in range(1,13) ]
 
 # Data locations for each file type
 collection = {'HIR1B': 'ILIAD',
@@ -58,13 +66,13 @@ collection = {'HIR1B': 'ILIAD',
               #'PTMSX': '/mnt/sdata/geoffc/HIRS_processing/data_lists/NOAA-19/PTMSX_noaa-19_latest'}
 
 # Metop-B
-input_data = {'HIR1B': '/mnt/sdata/geoffc/HIRS_processing/data_lists/Metop-B/HIR1B_metop-b_latest',
-              'CFSR':  '/mnt/sdata/geoffc/HIRS_processing/data_lists/CFSR.out',
-              'PTMSX': '/mnt/sdata/geoffc/HIRS_processing/data_lists/Metop-B/PTMSX_metop-b_latest'}
+input_data = {'HIR1B': '/mnt/cephfs_data/geoffc/hirs_data_lists/Metop-B/HIR1B_metop-b_latest',
+              'CFSR':  '/mnt/cephfs_data/geoffc/hirs_data_lists/CFSR.out',
+              'PTMSX': '/mnt/cephfs_data/geoffc/hirs_data_lists/Metop-B/PTMSX_metop-b_latest'}
 
 input_sources = {'collection':collection, 'input_data':input_data}
 
-# Initialize the hirs module with the data locations
+# Initialize the hirs_csrb_daily module with the data locations
 hirs_csrb_daily.set_input_sources(input_sources)
 
 # Instantiate the computation
@@ -105,7 +113,7 @@ try:
 
             try:
                 job_nums = []
-                #job_nums = safe_submit_order(comp, [comp.dataset('means')], contexts, download_onlies=[])
+                job_nums = safe_submit_order(comp, [comp.dataset('means')], contexts, download_onlies=[])
 
                 if job_nums != []:
                     #job_nums = range(len(contexts))
@@ -127,18 +135,3 @@ try:
 
 except Exception:
     LOG.warning(traceback.format_exc())
-
-#intervals = [
-    #TimeInterval(datetime(2016, 1, 1), datetime(2016, 2, 1) - wedge),
-    #TimeInterval(datetime(2016, 2, 1), datetime(2016, 3, 1) - wedge),
-    #TimeInterval(datetime(2016, 3, 1), datetime(2016, 4, 1) - wedge),
-    #TimeInterval(datetime(2016, 4, 1), datetime(2016, 5, 1) - wedge),
-    #TimeInterval(datetime(2016, 5, 1), datetime(2016, 6, 1) - wedge),
-    #TimeInterval(datetime(2016, 6, 1), datetime(2016, 7, 1) - wedge),
-    #TimeInterval(datetime(2016, 7, 1), datetime(2016, 8, 1) - wedge),
-    #TimeInterval(datetime(2016, 8, 1), datetime(2016, 9, 1) - wedge),
-    #TimeInterval(datetime(2016, 9, 1), datetime(2016, 10, 1) - wedge),
-    #TimeInterval(datetime(2016, 10, 1),datetime(2016, 11, 1) - wedge),
-    #TimeInterval(datetime(2016, 11, 1),datetime(2016, 12, 1) - wedge),
-    #TimeInterval(datetime(2016, 12, 1),datetime(2017, 1, 1) - wedge),
-#]
