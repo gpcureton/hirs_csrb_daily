@@ -51,7 +51,7 @@ def setup_computation(satellite):
 
     input_sources = {'collection':collection, 'input_data':input_data}
 
-    # Initialize the hirs2nc module with the data locations
+    # Initialize the hirs_csrb_daily module with the data locations
     hirs_csrb_daily.set_input_sources(input_sources)
 
     # Instantiate the computation
@@ -97,13 +97,15 @@ def local_execute_example(interval, satellite, hirs2nc_delivery_id, hirs_avhrr_d
         LOG.error("There are no valid {} contexts for the interval {}.".format(satellite, interval))
 
 
-def print_contexts(interval, satellite, hirs2nc_delivery_id, hirs_avhrr_delivery_id, hirs_csrb_daily_delivery_id, verbosity=2):
+def print_contexts(interval, satellite, hirs2nc_delivery_id, hirs_avhrr_delivery_id,
+                   hirs_csrb_daily_delivery_id, verbosity=2):
 
     setup_logging(verbosity)
 
     comp = setup_computation(satellite)
 
-    contexts = comp.find_contexts(interval, satellite, hirs2nc_delivery_id, hirs_avhrr_delivery_id, hirs_csrb_daily_delivery_id)
+    contexts = comp.find_contexts(interval, satellite, hirs2nc_delivery_id, hirs_avhrr_delivery_id,
+                                  hirs_csrb_daily_delivery_id)
     for context in contexts:
         LOG.info(context)
 
