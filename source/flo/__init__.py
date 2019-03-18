@@ -294,17 +294,6 @@ class HIRS_CSRB_DAILY(Computation):
         input_keys = inputs.keys()
         input_keys.sort()
         HIR1B_keys = [key for key in input_keys if 'HIR1B' in key]
-        #HIR1B = {}
-        #file_glob = '{}/NSS.HIRX*.nc'.format(input_dir)
-        #HIR1B = {'HIR1B_{}'.format(i):abspath(x) for (i,x) in enumerate(sorted(glob(file_glob)))}
-
-        #PTMSX = {}
-        #file_glob = '{}/NSS.GHRR*.hdf'.format(input_dir)
-        #PTMSX = {'PTMSX_{}'.format(i):abspath(x) for (i,x) in enumerate(sorted(glob(file_glob)))}
-
-        #COLLO = {}
-        #file_glob = '{}/colloc.hirs.avhrr*.hdf'.format(input_dir)
-        #COLLO = {'COLLO_{}'.format(i):abspath(x) for (i,x) in enumerate(sorted(glob(file_glob)))}
 
         file_indicies = xrange(len(HIR1B_keys))
 
@@ -398,12 +387,12 @@ class HIRS_CSRB_DAILY(Computation):
                 return rc_csrb_cfsr, None
 
         # Verify output file
-        output_stats = glob(output_stats)
-        if len(output_stats) != 0:
-            output_stats = output_stats[0]
-            LOG.info('Found output CFSR statistics file "{}"'.format(output_stats))
+        output_stats_file = glob(output_stats)
+        if len(output_stats_file) != 0:
+            output_stats_file = output_stats_file[0]
+            LOG.info('Found output CFSR statistics file "{}"'.format(output_stats_file))
         else:
-            LOG.error('Failed to genereate "{}", aborting'.format(output_stats))
+            LOG.error('Failed to generate "{}", aborting'.format(output_stats))
             rc = 1
             return rc, None
 
@@ -481,7 +470,8 @@ class HIRS_CSRB_DAILY(Computation):
         # Create the CFSR statistics for the current day.
         rc, output_stats_file = self.create_cfsr_statistics(inputs, context, cfsr_files)
         if rc != 0:
-            return rc
+            LOG.warn('Something went wrong, rc={}...'.format(rc))
+            return {}
         LOG.debug('create_cfsr_statistics() generated {}...'.format(output_stats_file))
 
         # Create the CFSR means for the current day
